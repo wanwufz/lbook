@@ -1,0 +1,49 @@
+/* html,
+body {
+  background-color: var(--vscode-editor-background) !important;
+} */
+
+* {
+  color: var(--vscode-editor-foreground) !important;
+}
+
+.v-list {
+  background-color: var(--vscode-editor-background) !important;
+}
+
+.form-item,
+.btns {
+  display: flex;
+  align-items: center;
+}
+
+.btns {
+  margin: 16px 0;
+}
+
+#app {
+  padding: 16px 0;
+}
+
+.form-item .v-btn,
+.btns .v-btn {
+  margin: 0 12px;
+}
+
+.form-item {
+  margin-top: 16px;
+}
+
+.v-expansion-panel-title {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+.v-expansion-panel-title__icon>i,
+.v-progress-circular {
+  background: transparent !important;
+}
+
+.v-expansion-panel {
+  background-color: var(--vscode-editor-background) !important;
+}

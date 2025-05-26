@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>配置</title>
+  <link rel="stylesheet" href="${mdIconSrc}">
+  <link rel="stylesheet" href="${mdCssSrc}">
+  <link rel="stylesheet" href="${baseCssSrc}">
+  <script src="${vueSrc}"></script>
+  <script src="${mdSrc}"></script>
+</head>
+
+<body>
+  <div id="app">
+    <v-text-field label="配置名称" variant="underlined" v-model="config.title"></v-text-field>
+    <v-expansion-panels v-model="collapse" multiple variant="accordion">
+      <v-expansion-panel title="书籍详情" value="0">
+        <v-expansion-panel-text>
+          <div class="form-item">
+            <v-text-field label="详情地址" variant="underlined" hint="如：https://www.tab2.cc/kan/45824/" persistent-hint
+              v-model="config.link">
+            </v-text-field>
+            <v-btn variant="tonal" @click="getContent" :loading="contentLoading">获取</v-btn>
+          </div>
+          <div class="form-item">
+            <v-textarea readonly label="正文获取结果" variant="underlined" :value="config.html" max-rows="10"
+              :active="config.html ? true : false"></v-textarea>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <v-expansion-panel title="书籍目录" value="1">
+        <v-expansion-panel-text>
+          <div class="form-item">
+            <v-text-field label="目录开始标识" variant="underlined" v-model="regex.start"></v-text-field>
+            <v-text-field label="目录终止标识" variant="underlined" v-model="regex.end"></v-text-field>
+          </div>
+          <div class="form-item">
+            <v-text-field label="目录获取规则" variant="underlined"
+              hint='如：a href ="(?<link>.*?)"\>(?<title>.*?)\<\/a\>\<\/dd\>' persistent-hint v-model="regex.regex">
+            </v-text-field>
+            <v-btn variant="tonal" @click="getList" :loading="catalogLoading">获取</v-btn>
+          </div>
+          <div class="form-item">
+            <v-textarea readonly label="目录获取结果" variant="underlined" :value="listStr" max-rows="10"
+              :active="listStr ? true : false"></v-textarea>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <v-expansion-panel title="章节正文" value="2">
+        <v-expansion-panel-text>
+          <div class="form-item">
+            <v-autocomplete label="章节地址" :items="config.catalog" variant="underlined" v-model="row" item-text="title"
+              item-value="link" no-data-text="暂无数据"></v-autocomplete>
+            <v-btn variant="tonal" @click="getRowHtml" :loading="rowHtmlLoading" :disabled="!row">获取</v-btn>
+          </div>
+          <div class="form-item">
+            <v-textarea readonly label="正文获取结果" variant="underlined" :value="rowHtml" max-rows="10"
+              :active="rowHtml ? true : false"></v-textarea>
+          </div>
+          <div class="form-item">
+            <v-text-field label="正文获取规则" variant="underlined"
+              hint='如：\<div id="chaptercontent" class="Readarea ReadAjax_content"\>(?<content>[\s\S]*?)\<\/div\>'
+              persistent-hint v-model="regex.detailRegex">
+            </v-text-field>
+            <v-btn variant="tonal" @click="getRowText">获取</v-btn>
+          </div>
+          <div class="form-item">
+            <v-textarea readonly label="正文整理结果" variant="underlined" :value="rowText" max-rows="10"
+              :active="rowText ? true : false"></v-textarea>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+    <div class="btns">
+      <v-btn @click="submit">保存</v-btn>
+      <v-btn variant="tonal" @click="reset">重置</v-btn>
+    </div>
+  </div>
+
+  <script>
+    const vscode = acquireVsCodeApi();
+    const { createApp, ref, computed, onMoutend } = Vue
+    const { createVuetify } = Vuetify
+    const vuetify = createVuetify({
+      defaults: {
+        global: {
+          size: 'small'
+        }
+      }
+    })
+    createApp({
+      setup() {
+        let baseConfig = {}
+        const collapse = ref(['0', '1', '2'])
+        const config = ref({})
+        const regex = computed({
+          get() { return config.value.regex || {} },
+          set(val) { config.value.regex = val }
+        })
+        const contentLoading = ref(false)
+        const row = ref('')
+        const rowHtml = ref('')
+        const rowHtmlLoading = ref(false)
+        const rowText = ref('')
+        const listStr = ref('')
+        const catalogLoading = ref(false)
+        window.addEventListener('message', event => {
+          const message = event.data;
+          switch (message.command) {
+            case 'setConfig':
+              baseConfig = JSON.parse(message.text)
+              config.value = { ...baseConfig };
+              vscode.postMessage({ command: 'opened' });
+              break;
+            case 'setContent':
+              config.value.html = message.text;
+              contentLoading.value = false;
+              break;
+            case 'setRowHtml':
+              rowHtml.value = message.text;
+              rowHtmlLoading.value = false;
+              break;
+            case 'setRowText':
+              rowText.value = message.text;
+              break;
+            case 'setList':
+              listStr.value = message.text;
+              const res = JSON.parse(message.text)
+              config.value.catalog = res || [];
+              catalogLoading.value = false;
+              break;
+          }
+        })
+        const submit = () => {
+          // 判断 文章详情地址、目录匹配规则、章节地址、正文匹配规则 是否正确填写
+          const data = { now: config.value, base: baseConfig }
+          vscode.postMessage({ command: 'submit', text: JSON.stringify(data) });
+        }
+        const getContent = () => {
+          contentLoading.value = true;
+          vscode.postMessage({ command: 'getContent', text: config.value.link });
+        }
+        const getRowHtml = () => {
+          rowHtmlLoading.value = true;
+          const item = config.value.catalog.find(item => item.link === row.value)
+          vscode.postMessage({ command: 'getRowHtml', text: item.link });
+        }
+        const getRowText = () => {
+          vscode.postMessage({
+            command: 'getRowText', text: JSON.stringify({
+              html: rowHtml.value,
+              regex: config.value.regex?.detailRegex,
+            })
+          });
+        }
+        const getList = () => {
+          catalogLoading.value = true;
+          vscode.postMessage({
+            command: 'getList', text: JSON.stringify(config.value)
+          });
+        }
+        const reset = () => {
+          config.value = { ...baseConfig };
+          row.value = '';
+          rowHtml.value = '';
+          rowText.value = '';
+          listStr.value = '';
+        }
+        return {
+          config,
+          submit,
+          reset,
+          getContent,
+          getList,
+          listStr,
+          collapse,
+          row,
+          rowHtml,
+          getRowHtml,
+          getRowText,
+          rowText,
+          contentLoading,
+          catalogLoading,
+          rowHtmlLoading,
+          regex,
+        }
+      }
+    }).use(vuetify).mount('#app')
+  </script>
+</body>
+
+</html>
