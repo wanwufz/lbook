@@ -12,12 +12,144 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lbookSidebar",
+          "title": "书籍扩展",
+          "icon": "assets/svg/logo.svg"
+        }
+      ]
+    },
+    "views": {
+      "lbookSidebar": [
+        {
+          "id": "lbook",
+          "name": "",
+          "icon": "assets/svg/logo.svg"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "lbook.helloWorld",
-        "title": "Hello World"
+        "command": "lbook.add",
+        "title": "新建书籍",
+        "icon": "assets/svg/add.svg"
+      },
+      {
+        "command": "lbook.previous",
+        "title": "上一页",
+        "icon": "assets/svg/previous.svg"
+      },
+      {
+        "command": "lbook.next",
+        "title": "下一页",
+        "icon": "assets/svg/next.svg"
+      },
+      {
+        "command": "lbook.copy",
+        "title": "复制配置"
+      },
+      {
+        "command": "lbook.config",
+        "title": "书籍配置",
+        "icon": "assets/svg/setting.svg"
+      },
+      {
+        "command": "lbook.down",
+        "title": "下载整本"
+      },
+      {
+        "command": "lbook.delete",
+        "title": "删除书籍"
+      },
+      {
+        "command": "lbook.size",
+        "title": "设置分页"
+      },
+      {
+        "command": "lbook.jump",
+        "title": "跳转页码"
+      },
+      {
+        "command": "lbook.view",
+        "title": "页面查看"
+      },
+      {
+        "command": "lbook.load",
+        "title": "刷新正文"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "lbook.add",
+          "when": "view == lbook",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "lbook.previous",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "lbook.next",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "inline@2"
+        },
+        {
+          "command": "lbook.config",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "inline@4"
+        },
+        {
+          "command": "lbook.copy",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation@3"
+        },
+        {
+          "command": "lbook.down",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation@5"
+        },
+        {
+          "command": "lbook.delete",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation@4"
+        },
+        {
+          "command": "lbook.size",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation@2"
+        },
+        {
+          "command": "lbook.jump",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation@1"
+        },
+        {
+          "command": "lbook.load",
+          "when": "view == lbook && viewItem == ltextItem",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "书籍扩展",
+      "properties": {
+        "lbook.view": {
+          "type": "string",
+          "default": "text",
+          "description": "书籍打开方式，默认text，可选 输出面板 output",
+          "enum": [
+            "text",
+            "output"
+          ]
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
