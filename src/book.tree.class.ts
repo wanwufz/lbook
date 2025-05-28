@@ -7,6 +7,7 @@ import { IBookTreeItem } from "./types";
 import { ReadOnlyContentProvider } from "./text.class";
 import { webRequest } from "./http";
 import * as htmlToText from "html-to-text";
+import { CheerioCrawler } from 'crawlee';
 
 export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<BookTreeItem | undefined> = new vscode.EventEmitter<BookTreeItem | undefined>();
@@ -262,5 +263,16 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
         if (showMessage) { vscode.window.showInformationMessage("获取正文成功!"); }
       });
     });
+  }
+  async down(element: BookTreeItem) {
+    if (!element) { return; }
+    this.output.clear();
+    const crawler = new CheerioCrawler({
+      requestHandler: async ({ $ }) => {
+        this.output.append($('body .listmain').text());
+      }
+    });
+    await crawler.run([element.book.link]);
+    this.output.show();
   }
 }
