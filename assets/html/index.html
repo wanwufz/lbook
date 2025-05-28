@@ -14,19 +14,19 @@
 
 <body>
   <div id="app">
-    <v-text-field label="配置名称" variant="underlined" v-model="config.title"></v-text-field>
+    <v-text-field label="配置名称" variant="underlined" v-model="book.title"></v-text-field>
     <v-expansion-panels v-model="collapse" multiple variant="accordion">
       <v-expansion-panel title="书籍详情" value="0">
         <v-expansion-panel-text>
           <div class="form-item">
             <v-text-field label="详情地址" variant="underlined" hint="如：https://www.tab2.cc/kan/45824/" persistent-hint
-              v-model="config.link">
+              v-model="book.link">
             </v-text-field>
-            <v-btn variant="tonal" @click="getContent" :loading="contentLoading">获取</v-btn>
+            <v-btn variant="tonal" @click="getBookHtml" :loading="BookHtmlLoading">获取</v-btn>
           </div>
           <div class="form-item">
-            <v-textarea readonly label="正文获取结果" variant="underlined" :value="config.html" max-rows="10"
-              :active="config.html ? true : false"></v-textarea>
+            <v-textarea readonly label="正文获取结果" variant="underlined" :value="bookHtml" max-rows="10"
+              :active="bookHtml ? true : false"></v-textarea>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -40,43 +40,51 @@
             <v-text-field label="目录获取规则" variant="underlined"
               hint='如：a href ="(?<link>.*?)"\>(?<title>.*?)\<\/a\>\<\/dd\>' persistent-hint v-model="regex.regex">
             </v-text-field>
-            <v-btn variant="tonal" @click="getList" :loading="catalogLoading">获取</v-btn>
+            <v-btn variant="tonal" @click="getCatalog">获取</v-btn>
           </div>
           <div class="form-item">
-            <v-textarea readonly label="目录获取结果" variant="underlined" :value="listStr" max-rows="10"
-              :active="listStr ? true : false"></v-textarea>
+            <v-textarea readonly label="目录获取结果" variant="underlined" :value="catalogJSON" max-rows="10"
+              :active="catalogJSON ? true : false"></v-textarea>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
       <v-expansion-panel title="章节正文" value="2">
         <v-expansion-panel-text>
           <div class="form-item">
-            <v-autocomplete label="章节地址" :items="config.catalog" variant="underlined" v-model="row" item-text="title"
+            <v-autocomplete label="章节地址" :items="book.catalog" variant="underlined" v-model="chapter" item-text="title"
               item-value="link" no-data-text="暂无数据"></v-autocomplete>
-            <v-btn variant="tonal" @click="getRowHtml" :loading="rowHtmlLoading" :disabled="!row">获取</v-btn>
+            <v-btn variant="tonal" @click="getChapterHtml" :loading="chapterHtmlLoading" :disabled="!chapter">获取</v-btn>
           </div>
           <div class="form-item">
-            <v-textarea readonly label="正文获取结果" variant="underlined" :value="rowHtml" max-rows="10"
-              :active="rowHtml ? true : false"></v-textarea>
+            <v-textarea readonly label="正文获取结果" variant="underlined" :value="chapterHtml" max-rows="10"
+              :active="chapterHtml ? true : false"></v-textarea>
           </div>
           <div class="form-item">
             <v-text-field label="正文获取规则" variant="underlined"
               hint='如：\<div id="chaptercontent" class="Readarea ReadAjax_content"\>(?<content>[\s\S]*?)\<\/div\>'
               persistent-hint v-model="regex.detailRegex">
             </v-text-field>
-            <v-btn variant="tonal" @click="getRowText">获取</v-btn>
+            <v-btn variant="tonal" @click="getChapterTxt">获取</v-btn>
           </div>
           <div class="form-item">
-            <v-textarea readonly label="正文整理结果" variant="underlined" :value="rowText" max-rows="10"
-              :active="rowText ? true : false"></v-textarea>
+            <v-textarea readonly label="正文整理结果" variant="underlined" :value="chapterTxt" max-rows="10"
+              :active="chapterTxt ? true : false"></v-textarea>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
     <div class="btns">
-      <v-btn @click="submit">保存</v-btn>
+      <v-btn @click="save">保存</v-btn>
       <v-btn variant="tonal" @click="reset">重置</v-btn>
     </div>
+    <v-snackbar v-model="messageModel" :timeout="2000">
+      {{ message }}
+      <template v-slot:actions>
+        <v-btn color="pink" variant="text" @click="messageModel = false">
+          关闭
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 
   <script>
@@ -94,97 +102,115 @@
       setup() {
         let baseConfig = {}
         const collapse = ref(['0', '1', '2'])
-        const config = ref({})
+        const book = ref({})
+        const bookHtml = ref('')
+        const BookHtmlLoading = ref(false)
+        const chapter = ref('')
+        const catalogJSON = ref('')
+        const chapterHtmlLoading = ref(false)
+        const chapterHtml = ref('')
+        const chapterTxt = ref('')
+        const messageModel = ref(false)
+        const message = ref('')
         const regex = computed({
-          get() { return config.value.regex || {} },
-          set(val) { config.value.regex = val }
+          get() { return book.value.regex || {} },
+          set(val) { book.value.regex = val }
         })
-        const contentLoading = ref(false)
-        const row = ref('')
-        const rowHtml = ref('')
-        const rowHtmlLoading = ref(false)
-        const rowText = ref('')
-        const listStr = ref('')
-        const catalogLoading = ref(false)
         window.addEventListener('message', event => {
           const message = event.data;
           switch (message.command) {
-            case 'setConfig':
+            case 'setBook':
               baseConfig = JSON.parse(message.text)
-              config.value = { ...baseConfig };
+              book.value = { ...baseConfig };
               vscode.postMessage({ command: 'opened' });
               break;
-            case 'setContent':
-              config.value.html = message.text;
-              contentLoading.value = false;
+            case 'setBookHtml':
+              bookHtml.value = message.text;
+              BookHtmlLoading.value = false;
               break;
-            case 'setRowHtml':
-              rowHtml.value = message.text;
-              rowHtmlLoading.value = false;
+            case 'setChapterHtml':
+              chapterHtml.value = message.text;
+              chapterHtmlLoading.value = false;
               break;
-            case 'setRowText':
-              rowText.value = message.text;
+            case 'setChapterTxt':
+              chapterTxt.value = message.text;
               break;
-            case 'setList':
-              listStr.value = message.text;
+            case 'setCatalog':
               const res = JSON.parse(message.text)
-              config.value.catalog = res || [];
-              catalogLoading.value = false;
+              catalogJSON.value = JSON.stringify(res.catalogHtml || '', undefined, 2);
+              book.value.catalog = res.catalog || [];
               break;
           }
         })
-        const submit = () => {
+        const save = () => {
           // 判断 文章详情地址、目录匹配规则、章节地址、正文匹配规则 是否正确填写
-          const data = { now: config.value, base: baseConfig }
-          vscode.postMessage({ command: 'submit', text: JSON.stringify(data) });
+          if (!book.value.title) { message.value = '请填写书籍名称'; messageModel.value = true; return; }
+          if (!book.value.link) { message.value = '请填写书籍地址'; messageModel.value = true; return; }
+          if (!book.value.regex.regex) { message.value = '请填写目录获取规则'; messageModel.value = true; return; }
+          if (!book.value.regex.detailRegex) { message.value = '请填写正文获取规则'; messageModel.value = true; return; }
+          const data = { bookNew: book.value, bookOld: baseConfig }
+          vscode.postMessage({ command: 'save', text: JSON.stringify(data) });
         }
-        const getContent = () => {
-          contentLoading.value = true;
-          vscode.postMessage({ command: 'getContent', text: config.value.link });
+        const getBookHtml = () => {
+          if (!book.value.link) { message.value = '请填写书籍地址'; messageModel.value = true; return; }
+          BookHtmlLoading.value = true;
+          vscode.postMessage({ command: 'getBookHtml', text: book.value.link });
         }
-        const getRowHtml = () => {
-          rowHtmlLoading.value = true;
-          const item = config.value.catalog.find(item => item.link === row.value)
-          vscode.postMessage({ command: 'getRowHtml', text: item.link });
+        const getChapterHtml = () => {
+          chapterHtmlLoading.value = true;
+          const item = book.value.catalog.find(item => item.link === chapter.value)
+          vscode.postMessage({ command: 'getChapterHtml', text: item.link });
         }
-        const getRowText = () => {
+        const getChapterTxt = () => {
+          if (!chapterHtml.value) { message.value = '请先获取章节正文'; messageModel.value = true; return; }
+          if (!regex.value.detailRegex) { message.value = '请填写正文获取规则'; messageModel.value = true; return; }
           vscode.postMessage({
-            command: 'getRowText', text: JSON.stringify({
-              html: rowHtml.value,
-              regex: config.value.regex?.detailRegex,
+            command: 'getChapterTxt',
+            text: JSON.stringify({
+              html: chapterHtml.value,
+              book: book.value,
             })
           });
         }
-        const getList = () => {
-          catalogLoading.value = true;
+        const getCatalog = () => {
+          if (!book.value.link) { message.value = '请填写书籍地址'; messageModel.value = true; return; }
+          if (!bookHtml.value) { message.value = '请先获取书籍详情'; messageModel.value = true; return; }
+          if (!regex.value.regex) { message.value = '请填写目录获取规则'; messageModel.value = true; return; }
           vscode.postMessage({
-            command: 'getList', text: JSON.stringify(config.value)
+            command: 'getCatalog',
+            text: JSON.stringify({
+              html: bookHtml.value,
+              book: book.value,
+            })
           });
         }
         const reset = () => {
-          config.value = { ...baseConfig };
-          row.value = '';
-          rowHtml.value = '';
-          rowText.value = '';
-          listStr.value = '';
+          book.value = { ...baseConfig };
+          chapter.value = '';
+          chapterHtml.value = '';
+          chapterTxt.value = '';
+          catalogJSON.value = '';
+          bookHtml.value = '';
         }
         return {
-          config,
-          submit,
+          book,
+          save,
           reset,
-          getContent,
-          getList,
-          listStr,
+          getBookHtml,
+          getCatalog,
+          catalogJSON,
           collapse,
-          row,
-          rowHtml,
-          getRowHtml,
-          getRowText,
-          rowText,
-          contentLoading,
-          catalogLoading,
-          rowHtmlLoading,
+          chapter,
+          chapterHtml,
+          getChapterHtml,
+          getChapterTxt,
+          chapterTxt,
+          BookHtmlLoading,
+          chapterHtmlLoading,
           regex,
+          bookHtml,
+          message,
+          messageModel,
         }
       }
     }).use(vuetify).mount('#app')

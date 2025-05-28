@@ -149,7 +149,19 @@
           ]
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "command": "lbook.textPrevious",
+        "key": "alt+left",
+        "when": "lbook.openChapter"
+      },
+      {
+        "command": "lbook.TextNext",
+        "key": "alt+right",
+        "when": "lbook.openChapter"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",

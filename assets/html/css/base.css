@@ -47,3 +47,11 @@ body {
 .v-expansion-panel {
   background-color: var(--vscode-editor-background) !important;
 }
+
+.v-snackbar__actions .v-btn__content {
+  color: #999 !important;
+}
+
+.v-snackbar__content {
+  color: #fff !important;
+}
