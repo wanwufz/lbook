@@ -106,11 +106,6 @@
           "group": "navigation@3"
         },
         {
-          "command": "lbook.down",
-          "when": "view == lbook && viewItem == lbookItem",
-          "group": "navigation@5"
-        },
-        {
           "command": "lbook.delete",
           "when": "view == lbook && viewItem == lbookItem",
           "group": "navigation@4"
