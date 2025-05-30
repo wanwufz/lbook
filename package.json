@@ -1,13 +1,24 @@
 {
   "name": "lbook",
   "displayName": "lBook",
-  "description": "",
+  "description": "一个简洁好用的网文阅读插件",
   "version": "0.0.1",
+  "publisher": "wawufz2025",
   "engines": {
     "vscode": "^1.100.0"
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "book",
+    "read",
+    "txt",
+    "fish",
+    "网文阅读",
+    "小说插件",
+    "阅读工具",
+    "网页小说"
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
@@ -183,7 +194,6 @@
     "@vscode/test-electron": "^2.4.1",
     "@vue/tsconfig": "^0.7.0",
     "axios": "^1.9.0",
-    "crawlee": "^3.0.0",
     "esbuild": "^0.25.1",
     "eslint": "^9.23.0",
     "html-to-text": "^9.0.5",

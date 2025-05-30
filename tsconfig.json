@@ -8,16 +8,13 @@
 		"sourceMap": true,
 		"rootDir": "src",
 		"strict": true,
+		"declaration": true,
+		"declarationDir": "./types",
+		"emitDeclarationOnly": false,
 	},
 	"exclude": [
 		"node_modules",
-	],
-	"references": [
-		{
-			"path": "./tsconfig.app.json"
-		},
-		{
-			"path": "./tsconfig.node.json"
-		}
+		"vite.config.ts",
+		"src/vue/*.*",
 	]
 }
