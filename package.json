@@ -2,7 +2,7 @@
   "name": "lbook",
   "displayName": "lBook",
   "description": "一个简洁好用的网文阅读插件",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "wawufz2025",
   "engines": {
     "vscode": "^1.100.0"
@@ -204,5 +204,8 @@
     "vue": "^3.5.13",
     "vue-tsc": "^2.2.8",
     "vuetify": "^3.8.7"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.6.3"
   }
 }
