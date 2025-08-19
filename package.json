@@ -85,6 +85,10 @@
       {
         "command": "lbook.load",
         "title": "刷新正文"
+      },
+      {
+        "command": "lbook.loadDirectory",
+        "title": "刷新目录"
       }
     ],
     "menus": {
@@ -130,6 +134,11 @@
           "command": "lbook.jump",
           "when": "view == lbook && viewItem == lbookItem",
           "group": "navigation@1"
+        },
+        {
+          "command": "lbook.loadDirectory",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation"
         },
         {
           "command": "lbook.load",

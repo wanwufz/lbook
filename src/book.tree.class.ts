@@ -7,6 +7,7 @@ import type { IBookTreeItem } from "./types"
 import { ReadOnlyContentProvider } from "./text.class"
 import { webRequest } from "./http"
 import * as htmlToText from "html-to-text"
+import { getBookCatalog } from "./utils"
 // import { CheerioCrawler } from 'crawlee'
 
 export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
@@ -261,6 +262,27 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
         }
         resolve(await doHttp())
         if (showMessage) { vscode.window.showInformationMessage("获取正文成功!") }
+      })
+    })
+  }
+  async loadDirectory(item: BookTreeItem) {
+    if (!item) { return }
+    return await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: '正在刷新目录信息...',
+      cancellable: false,
+    }, () => {
+      return new Promise<boolean>(async (resolve) => {
+        webRequest(item.book.link).then(html => {
+          const catalog = getBookCatalog(JSON.stringify({book: item.book, html}))
+          item.book.catalog = catalog
+          this.resetLabel(item)
+          resolve(true)
+          vscode.window.showInformationMessage("刷新目录成功!")
+        }).catch(() => {
+          resolve(false)
+          vscode.window.showErrorMessage("刷新目录失败!")
+        })
       })
     })
   }

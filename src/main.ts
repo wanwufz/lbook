@@ -33,6 +33,7 @@ export function init(ctx: vscode.ExtensionContext) {
             case 'lbook.jump': BookTree.jump(element); return
             case 'lbook.view': BookTree.view(element); return
             case 'lbook.load': BookTree.load(element); return
+            case 'lbook.loadDirectory': BookTree.loadDirectory(element); return
             // case 'lbook.down': BookTree.down(element); return
             default:
               vscode.window.showInformationMessage(command.title)
