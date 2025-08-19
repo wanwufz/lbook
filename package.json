@@ -1,9 +1,17 @@
 {
   "name": "lbook",
   "displayName": "lBook",
-  "description": "一个简洁好用的网文阅读插件",
-  "version": "0.0.2",
+  "description": "A simple and user-friendly VS Code web novel reading extension / 一个简洁好用的vscode网文阅读插件",
+  "version": "0.0.3",
   "publisher": "wawufz2025",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wanwufz/lbook.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wanwufz/lbook/issues"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.100.0"
   },
