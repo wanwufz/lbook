@@ -16,6 +16,10 @@ export interface IBookTreeItem {
   page: number;
   /** 分页大小 */
   pageSize: number;
+  /** 下一页关键词 */
+  nextKey?: string;
+  /** 下一页链接规则 */
+  nextRegex?: string;
 }
 /** 树视图节点类型 */
 export interface ITreeItem {

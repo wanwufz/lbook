@@ -72,6 +72,16 @@
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
+      <v-expansion-panel title="分页配置" value="3">
+        <v-expansion-panel-text>
+          <div class="form-item">
+            <v-text-field label="分页关键词" variant="underlined" persistent-hint hint='如：点击下一页继续阅读'
+              v-model="book.nextKey"></v-text-field>
+            <v-text-field label="下一页链接规则" persistent-hint hint='如：<a href="([^"]+)">下一页<\/a>' variant="underlined"
+              v-model="book.nextRegex"></v-text-field>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
     </v-expansion-panels>
     <div class="btns">
       <v-btn @click="save">保存</v-btn>
@@ -101,7 +111,7 @@
     createApp({
       setup() {
         let baseConfig = {}
-        const collapse = ref(['0', '1', '2'])
+        const collapse = ref(['0', '1', '2', '3'])
         const book = ref({})
         const bookHtml = ref('')
         const BookHtmlLoading = ref(false)

@@ -4,6 +4,11 @@ All notable changes to the "lbook" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.4] - 2025-09-22
+### Added
+- 增加【下一页】网页获取，方便准确获取完整章节内容。
+- 修复插件更新时，书籍数据迁移问题。
+
 ## [0.0.3] - 2025-08-19
 ### Added
 - 增加书籍刷新目录功能，方便获取最新章节。
