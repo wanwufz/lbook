@@ -2,7 +2,7 @@
   "name": "lbook",
   "displayName": "lBook",
   "description": "A simple and user-friendly VS Code web novel reading extension / 一个简洁好用的vscode网文阅读插件",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "wawufz2025",
   "repository": {
     "type": "git",
