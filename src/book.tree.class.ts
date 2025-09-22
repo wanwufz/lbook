@@ -255,7 +255,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
           if (book.nextKey && book.nextRegex && res.includes(book.nextKey)) {
             let nextLink = res.match(new RegExp(book.nextRegex, 'i'))?.[1]
             nextLink = nextLink?.toLocaleLowerCase().startsWith("http") ? nextLink : url.resolve(book.link, nextLink || '')
-            return htmlToText.convert(content + '<br />' + await getText(nextLink, book))
+            return htmlToText.convert(content) + '\n' + await getText(nextLink, book)
           } else {
             return htmlToText.convert(content)
           }
