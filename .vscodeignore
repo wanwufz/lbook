@@ -2,6 +2,8 @@
 .vscode-test/**
 out/**
 node_modules/**
+!node_modules/playwright-core/**
+!node_modules/playwright-core/package.json
 src/**
 .gitignore
 .yarnrc

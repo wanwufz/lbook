@@ -4,6 +4,11 @@ All notable changes to the "lbook" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.7] - 2026-04-24
+### Added
+- 重构抓取代码，支持spa单页面网页抓取。
+- 由于插件体积限制，重构后抓取需要已安装chrome或edge等chromium内核浏览器，在第一次使用时会提示选择浏览器可执行文件。
+
 ## [0.0.6] - 2025-09-22
 ### Added
 - 增加【下一页】网页获取，方便准确获取完整章节内容。
