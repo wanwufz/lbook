@@ -182,7 +182,7 @@ function extractPaginationLinks(html: string, selector: string, pageUrl: string)
 export function showNewConfigPanel(context: vscode.ExtensionContext, existingConfig?: IBookTreeItem) {
   const panel = vscode.window.createWebviewPanel(
     'lbook.newConfig',
-    existingConfig ? `编辑：${existingConfig.title}` : '新版配置',
+    existingConfig ? `编辑：${existingConfig.title}` : '新建配置',
     vscode.ViewColumn.One,
     {
       enableScripts: true,
