@@ -274,6 +274,13 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
             return htmlToText(content)
           }
         }
+        // 检查分页配置是否缺少关键词
+        const book = item?.parent?.book
+        if (book?.mode === 'selector' && book?.paginationSelector && !book?.paginationText) {
+          vscode.window.showWarningMessage(
+            `"${book.title}" 的分页规则缺少匹配关键词（如"下一页"），请重新配置分页规则以获得完整内容`
+          )
+        }
         const doHttp = async () => {
           if (!item) { return false }
           if (!item.parent) { return false }
@@ -320,6 +327,13 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
     if (!item) {return}
     const book = item.book
     const bookPath = path.join(this.bookDir, book.title)
+
+    // 检查分页配置是否缺少关键词
+    if (book.mode === 'selector' && book.paginationSelector && !book.paginationText) {
+      vscode.window.showWarningMessage(
+        `"${book.title}" 的分页规则缺少匹配关键词（如"下一页"），请重新配置分页规则后再批量抓取`
+      )
+    }
 
     // 计算当前分页的章节列表
     const start = (book.page! - 1) * book.pageSize!
