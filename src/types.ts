@@ -31,6 +31,8 @@ export interface IBookTreeItem {
   contentSelector?: string;
   /** 分页 CSS 选择器 */
   paginationSelector?: string;
+  /** 分页匹配文本（用于精准定位，如 "下一页"） */
+  paginationText?: string;
 }
 /** 树视图节点类型 */
 export interface ITreeItem {
@@ -89,7 +91,7 @@ export type WebviewMessage =
   | { type: 'fetch-directory-content'; link: string }
   | { type: 'mark-as-directory'; selector: string; pageUrl: string }
   | { type: 'mark-as-content'; selector: string; pageUrl: string }
-  | { type: 'mark-as-pagination'; selector: string; pageUrl: string }
+  | { type: 'mark-as-pagination'; selector: string; pageUrl: string; text?: string }
   | { type: 'save-config'; config: SimpleConfig | null }
   | { type: 'resolve-attributes'; html: string; tagIndex: number }
   | { type: 'progress'; message: string }
@@ -101,6 +103,8 @@ export interface SimpleConfig {
   catalogSelector?: string;
   contentSelector?: string;
   paginationSelector?: string;
+  /** 分页匹配文本（用于精准定位，如 "下一页"） */
+  paginationText?: string;
   items: DirectoryItem[];
 }
 

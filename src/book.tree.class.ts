@@ -257,7 +257,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
 
           if (book.mode === 'selector' && book.contentSelector) {
             // ─── selector 模式：CSS 选择器提取正文（含分页） ───
-            const text = await fetchChapterTextBySelector(res, book.contentSelector, book.paginationSelector, link)
+            const text = await fetchChapterTextBySelector(res, book.contentSelector, book.paginationSelector, link, book.paginationText)
             if (!text) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
             return text
           } else {
@@ -364,7 +364,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
 
               if (book.mode === 'selector' && book.contentSelector) {
                 // selector 模式（使用共享提取函数，含分页合并）
-                text = await fetchChapterTextBySelector(html, book.contentSelector, book.paginationSelector, ch.link)
+                text = await fetchChapterTextBySelector(html, book.contentSelector, book.paginationSelector, ch.link, book.paginationText)
                 if (!text && attempt < 3) {
                   await new Promise(r => setTimeout(r, 1000))
                   continue

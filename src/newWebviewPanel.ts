@@ -33,6 +33,7 @@ export function showNewConfigPanel(context: vscode.ExtensionContext, existingCon
       catalogSelector: existingConfig.catalogSelector,
       contentSelector: existingConfig.contentSelector,
       paginationSelector: existingConfig.paginationSelector,
+      paginationText: existingConfig.paginationText,
       items: existingConfig.catalog.map(c => ({ title: c.title, link: c.link })),
     }
     panel.webview.postMessage({ type: 'config-loaded', config: simpleConfig } as ExtensionMessage)
@@ -140,7 +141,7 @@ async function handleMessage(
         break
       }
 
-      const links = extractPaginationLinks(html, message.selector, message.pageUrl)
+      const links = extractPaginationLinks(html, message.selector, message.pageUrl, message.text)
       post({ type: 'pagination-links', links })
       break
     }
@@ -178,6 +179,7 @@ async function handleMessage(
         catalogSelector: message.config.catalogSelector,
         contentSelector: message.config.contentSelector,
         paginationSelector: message.config.paginationSelector || undefined,
+        paginationText: message.config.paginationText || undefined,
       }
 
       // 保存到旧版书籍目录

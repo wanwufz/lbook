@@ -148,8 +148,18 @@ export function extractContentAsText(html: string, selector: string): string {
 
 // ─── 分页链接提取 ───
 
-/** 从 HTML 中按 CSS 选择器提取分页链接 */
-export function extractPaginationLinks(html: string, selector: string, pageUrl: string): string[] {
+/** 判断 a 元素的文本是否匹配筛选（两端去空格后包含关系） */
+function linkTextMatches(el: any, textFilter: string): boolean {
+  const elText = (el.textContent || '').trim()
+  const filter = textFilter.trim()
+  return elText.includes(filter) || filter.includes(elText)
+}
+
+/**
+ * 从 HTML 中按 CSS 选择器提取分页链接。
+ * @param textFilter 可选文本筛选：仅返回文本包含此内容的 <a> 标签链接。
+ */
+export function extractPaginationLinks(html: string, selector: string, pageUrl: string, textFilter?: string): string[] {
   const root = parse(html)
   const element = root.querySelector(selector)
   if (!element) { return [] }
@@ -157,22 +167,24 @@ export function extractPaginationLinks(html: string, selector: string, pageUrl: 
   const links: string[] = []
   const seen = new Set<string>()
 
-  if (element.tagName.toLowerCase() === 'a') {
-    const href = element.getAttribute('href') || ''
+  const maybePush = (href: string) => {
+    if (!href) { return }
     const absoluteLink = getAbsoluteUrl(href, pageUrl)
     if (absoluteLink && !seen.has(absoluteLink)) {
       seen.add(absoluteLink)
       links.push(absoluteLink)
     }
+  }
+
+  if (element.tagName.toLowerCase() === 'a') {
+    if (!textFilter || linkTextMatches(element, textFilter)) {
+      maybePush(element.getAttribute('href') || '')
+    }
   } else {
     const aTags = element.querySelectorAll('a')
     for (const a of aTags) {
-      const href = a.getAttribute('href') || ''
-      if (!href) { continue }
-      const absoluteLink = getAbsoluteUrl(href, pageUrl)
-      if (absoluteLink && !seen.has(absoluteLink)) {
-        seen.add(absoluteLink)
-        links.push(absoluteLink)
+      if (!textFilter || linkTextMatches(a, textFilter)) {
+        maybePush(a.getAttribute('href') || '')
       }
     }
   }

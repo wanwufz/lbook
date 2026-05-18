@@ -113,6 +113,7 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
     directorySelector: '',
     contentSelector: '',
     paginationSelector: '',
+    paginationText: '',
     contentHtml: '',
     fetchedPageUrl: '',
     contentPageUrl: ''
@@ -207,6 +208,7 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
       catalogSelector: state.directorySelector,
       contentSelector: state.contentSelector || '',
       paginationSelector: state.paginationSelector || '',
+      paginationText: state.paginationText || '',
       items: state.directoryItems
     };
 
@@ -312,7 +314,8 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
       vscode.postMessage({ type: 'mark-as-content', selector: node.selector, pageUrl: pageUrl });
     } else if (action === 'pagination') {
       state.paginationSelector = node.selector;
-      vscode.postMessage({ type: 'mark-as-pagination', selector: node.selector, pageUrl });
+      state.paginationText = node.textContent || '';
+      vscode.postMessage({ type: 'mark-as-pagination', selector: node.selector, pageUrl, text: node.textContent });
     }
   }
 
@@ -380,6 +383,9 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
         }
         if (msg.config.paginationSelector) {
           state.paginationSelector = msg.config.paginationSelector;
+        }
+        if (msg.config.paginationText) {
+          state.paginationText = msg.config.paginationText;
         }
         actionStatus.textContent = '已加载配置，可重新抓取或直接保存';
         break;

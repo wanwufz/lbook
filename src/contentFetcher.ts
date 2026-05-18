@@ -3,14 +3,23 @@ import { htmlToText } from './htmlTransform'
 import { webRequest } from './http'
 import type { IBookTreeItem } from './types'
 
+/** 判断 a 元素的文本是否匹配文本筛选 */
+function linkTextMatches(el: any, textFilter: string): boolean {
+  const elText = (el.textContent || '').trim()
+  const filter = textFilter.trim()
+  return elText.includes(filter) || filter.includes(elText)
+}
+
 /**
  * 收集分页元素的链接列表。
  * 从已解析的 root 中按 paginationSelector 查找 a 标签，返回绝对 URL 列表。
+ * @param textFilter 可选文本筛选：仅返回文本包含此内容的 <a> 标签链接。
  */
 export function collectPaginationLinksFromRoot(
   root: ReturnType<typeof parse>,
   paginationSelector: string,
   baseUrl: string,
+  textFilter?: string,
 ): string[] {
   const pagEl = root.querySelector(paginationSelector)
   if (!pagEl) { return [] }
@@ -18,17 +27,22 @@ export function collectPaginationLinksFromRoot(
   const links: string[] = []
   const seen = new Set<string>()
 
+  const maybePush = (href: string) => {
+    if (!href) { return }
+    const abs = href.startsWith('http') ? href : new URL(href, baseUrl).href
+    if (abs && !seen.has(abs)) { seen.add(abs); links.push(abs) }
+  }
+
   const collect = (el: any) => {
     if (el.tagName?.toLowerCase() === 'a') {
-      const href = el.getAttribute('href') || ''
-      const abs = href.startsWith('http') ? href : new URL(href, baseUrl).href
-      if (abs && !seen.has(abs)) { seen.add(abs); links.push(abs) }
+      if (!textFilter || linkTextMatches(el, textFilter)) {
+        maybePush(el.getAttribute('href') || '')
+      }
     } else {
       for (const a of (el.querySelectorAll?.('a') || [])) {
-        const href = a.getAttribute('href') || ''
-        if (!href) { continue }
-        const abs = href.startsWith('http') ? href : new URL(href, baseUrl).href
-        if (abs && !seen.has(abs)) { seen.add(abs); links.push(abs) }
+        if (!textFilter || linkTextMatches(a, textFilter)) {
+          maybePush(a.getAttribute('href') || '')
+        }
       }
     }
   }
@@ -46,6 +60,7 @@ export async function fetchChapterTextBySelector(
   contentSelector: string,
   paginationSelector: string | undefined,
   chapterLink: string,
+  paginationText?: string,
 ): Promise<string | null> {
   const root = parse(html)
   const el = root.querySelector(contentSelector)
@@ -56,7 +71,7 @@ export async function fetchChapterTextBySelector(
 
   // 分页处理
   if (paginationSelector) {
-    const pagLinks = collectPaginationLinksFromRoot(root, paginationSelector, chapterLink)
+    const pagLinks = collectPaginationLinksFromRoot(root, paginationSelector, chapterLink, paginationText)
     for (const pl of pagLinks) {
       const pagHtml = await webRequest(pl)
       if (pagHtml) {
