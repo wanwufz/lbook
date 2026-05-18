@@ -1,5 +1,6 @@
 import * as vscode from "vscode"
 import path from "path"
+import * as os from "os"
 import { BookTreeItem, getBookLabel } from "./book.class"
 import { BookWebview } from "./book.web.class"
 import fs from 'fs'
@@ -522,6 +523,49 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
           vscode.window.showInformationMessage(`批量抓取完成：成功 ${successCount} 章`)
         }
       }
+    )
+  }
+
+  /**
+   * 下载已缓存章节，合并为一个整书 txt 文件。
+   */
+  async downloadCached(item: BookTreeItem) {
+    if (!item) return
+    const book = item.book
+    const bookPath = path.join(this.bookDir, book.title)
+
+    // 遍历目录，收集已缓存的文件内容
+    const parts: string[] = []
+    let cachedCount = 0
+
+    for (const ch of book.catalog) {
+      const txtPath = path.join(bookPath, `${ch.index}. ${ch.title}.txt`)
+      if (fs.existsSync(txtPath)) {
+        const content = fs.readFileSync(txtPath, 'utf-8')
+        parts.push(`第 ${ch.index} 章 ${ch.title}\n${'─'.repeat(40)}\n${content}`)
+        cachedCount++
+      }
+    }
+
+    if (cachedCount === 0) {
+      vscode.window.showWarningMessage('没有已缓存章节，请先抓取内容')
+      return
+    }
+
+    // 选择保存位置，默认到用户文档目录
+    const docsDir = path.join(os.homedir(), 'Documents')
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(path.join(docsDir, `${book.title}.txt`)),
+      filters: { '文本文件': ['txt'] },
+      title: `保存整书 - ${book.title}`,
+    })
+    if (!uri) return
+
+    const merged = parts.join('\n\n')
+    fs.writeFileSync(uri.fsPath, merged, 'utf-8')
+
+    vscode.window.showInformationMessage(
+      `已保存整书 (${cachedCount} 章)：${path.basename(uri.fsPath)}`
     )
   }
 

@@ -36,6 +36,7 @@ export function init(ctx: vscode.ExtensionContext) {
             case 'lbook.load': BookTree.load(element); return
             case 'lbook.loadDirectory': BookTree.loadDirectory(element); return
             case 'lbook.fetchPage': BookTree.fetchPage(element); return
+            case 'lbook.downloadCached': BookTree.downloadCached(element); return
             case 'lbook.newConfig': showNewConfigPanel(ctx); return
             case 'lbook.refresh': BookTree.refresh(); return
             default:
