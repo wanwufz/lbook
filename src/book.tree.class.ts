@@ -286,7 +286,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
                     const aTags = el.querySelectorAll?.('a') || []
                     for (const a of aTags) {
                       const href = a.getAttribute('href') || ''
-                      if (!href) continue
+                      if (!href) {continue}
                       const abs = href.startsWith('http') ? href : url.resolve(link, href)
                       if (abs && !seen.has(abs)) { seen.add(abs); pagLinks.push(abs) }
                     }
@@ -366,6 +366,165 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
       })
     })
   }
+  /**
+   * 抓取当前分页内所有未缓存的章节。
+   * 并行抓取，失败重试最多 3 次，最终跳过失败项。
+   */
+  async fetchPage(item: BookTreeItem) {
+    if (!item) {return}
+    const book = item.book
+    const bookPath = path.join(this.bookDir, book.title)
+
+    // 计算当前分页的章节列表
+    const start = (book.page! - 1) * book.pageSize!
+    const end = Math.min(start + book.pageSize!, book.catalog.length)
+    const pageChapters = book.catalog.slice(start, end)
+
+    // 过滤已缓存章节
+    const uncached = pageChapters.filter(ch => {
+      const txtPath = path.join(bookPath, `${ch.index}. ${ch.title}.txt`)
+      return !fs.existsSync(txtPath)
+    })
+
+    if (uncached.length === 0) {
+      vscode.window.showInformationMessage('当前页所有章节已缓存')
+      return
+    }
+
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `正在批量抓取 (${uncached.length} 章)`,
+        cancellable: true,
+      },
+      async (progress, token) => {
+        let successCount = 0
+        let failCount = 0
+
+        // 每个章节的抓取函数（含内部重试）
+        const fetchOne = async (ch: IBookTreeItem): Promise<boolean> => {
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            if (token.isCancellationRequested) {return false}
+
+            progress.report({ message: `[${attempt}/3] ${ch.title}` })
+            const html = await webRequest(ch.link)
+            if (!html) {
+              if (attempt < 3) {await new Promise(r => setTimeout(r, 1000))}
+              continue
+            }
+
+            try {
+              let text: string | null = null
+
+              if (book.mode === 'selector' && book.contentSelector) {
+                // selector 模式
+                const root = parse(html)
+                const el = root.querySelector(book.contentSelector)
+                if (el) {
+                  text = htmlToText.convert(el.innerHTML?.trim() || '', {
+                    wordwrap: 80,
+                    selectors: [
+                      { selector: 'a', options: { ignoreHref: true } },
+                      { selector: 'img', format: 'skip' },
+                    ],
+                  })
+                }
+                if (!text && attempt < 3) {
+                  await new Promise(r => setTimeout(r, 1000))
+                  continue
+                }
+                // 分页处理
+                if (text && book.paginationSelector) {
+                  const pagEl = root.querySelector(book.paginationSelector)
+                  if (pagEl) {
+                    const pagLinks: string[] = []
+                    const seen = new Set<string>()
+                    const collect = (el: any) => {
+                      if (el.tagName?.toLowerCase() === 'a') {
+                        const href = el.getAttribute('href') || ''
+                        const abs = href.startsWith('http') ? href : url.resolve(ch.link, href)
+                        if (abs && !seen.has(abs)) { seen.add(abs); pagLinks.push(abs) }
+                      } else {
+                        for (const a of (el.querySelectorAll?.('a') || [])) {
+                          const href = a.getAttribute('href') || ''
+                          if (!href) {continue}
+                          const abs = href.startsWith('http') ? href : url.resolve(ch.link, href)
+                          if (abs && !seen.has(abs)) { seen.add(abs); pagLinks.push(abs) }
+                        }
+                      }
+                    }
+                    collect(pagEl)
+                    for (const pl of pagLinks) {
+                      const pagHtml = await webRequest(pl)
+                      if (pagHtml) {
+                        const pr = parse(pagHtml).querySelector(book.contentSelector)
+                        if (pr) {
+                          text += '\n\n---\n\n' + htmlToText.convert(pr.innerHTML?.trim() || '', {
+                            wordwrap: 80,
+                            selectors: [
+                              { selector: 'a', options: { ignoreHref: true } },
+                              { selector: 'img', format: 'skip' },
+                            ],
+                          })
+                        }
+                      }
+                    }
+                  }
+                }
+              } else if (book.regex.detailRegex) {
+                // regex 模式（递归翻页，与 load 方法行为一致）
+                const fetchRecursive = async (chapterUrl: string): Promise<string> => {
+                  const h = await webRequest(chapterUrl)
+                  if (!h) {return ''}
+                  const re = new RegExp(book.regex.detailRegex, 'g')
+                  const m = re.exec(h)
+                  const raw = m?.groups!["content"]
+                  if (!raw) {return ''}
+                  let part = htmlToText.convert(raw)
+                  if (book.nextKey && book.nextRegex && h.includes(book.nextKey)) {
+                    let nl = h.match(new RegExp(book.nextRegex, 'i'))?.[1]
+                    nl = nl?.toLocaleLowerCase().startsWith("http") ? nl : url.resolve(book.link, nl || '')
+                    if (nl) {
+                      const next = await fetchRecursive(nl)
+                      if (next) {part += '\n' + next}
+                    }
+                  }
+                  return part
+                }
+                text = await fetchRecursive(ch.link)
+              }
+
+              if (text) {
+                const txtPath = path.join(bookPath, `${ch.index}. ${ch.title}.txt`)
+                fs.mkdirSync(path.dirname(txtPath), { recursive: true })
+                fs.writeFileSync(txtPath, text, 'utf-8')
+                return true
+              }
+            } catch {
+              // 继续重试
+            }
+
+            if (attempt < 3) {await new Promise(r => setTimeout(r, 1000))}
+          }
+          return false
+        }
+
+        // 并行执行所有章节抓取
+        const results = await Promise.all(uncached.map(fetchOne))
+        successCount = results.filter(r => r).length
+        failCount = uncached.length - successCount
+
+        this.refresh(item)
+
+        if (failCount > 0) {
+          vscode.window.showWarningMessage(`批量抓取完成：成功 ${successCount} 章，失败 ${failCount} 章`)
+        } else {
+          vscode.window.showInformationMessage(`批量抓取完成：成功 ${successCount} 章`)
+        }
+      }
+    )
+  }
+
   // async down(element: BookTreeItem) {
   //   if (!element) { return }
   //   this.output.clear()

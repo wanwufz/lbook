@@ -106,6 +106,10 @@
       {
         "command": "lbook.loadDirectory",
         "title": "刷新目录"
+      },
+      {
+        "command": "lbook.fetchPage",
+        "title": "抓取当前页"
       }
     ],
     "menus": {
@@ -161,6 +165,11 @@
           "command": "lbook.loadDirectory",
           "when": "view == lbook && viewItem == lbookItem",
           "group": "navigation"
+        },
+        {
+          "command": "lbook.fetchPage",
+          "when": "view == lbook && viewItem == lbookItem",
+          "group": "navigation@5"
         },
         {
           "command": "lbook.load",
