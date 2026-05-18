@@ -5,7 +5,7 @@ import { BookTreeItem, getBookLabel } from "./book.class"
 import { BookWebview } from "./book.web.class"
 import fs from 'fs'
 import type { IBookTreeItem } from "./types"
-import { ReadOnlyContentProvider } from "./text.class"
+import { ReadOnlyContentProvider, fireContentChange } from "./text.class"
 import { webRequest } from "./http"
 import { htmlToText } from './htmlTransform'
 import { parse } from 'node-html-parser'
@@ -292,6 +292,8 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
           const bookPath = path.join(this.bookDir, item.parent.book.title)
           const txtPath = path.join(bookPath, `${item.book.index}. ${item.book.title}.txt`)
           fs.writeFileSync(txtPath, text, { encoding: 'utf-8' })
+          // 通知 VS Code 重新读取 readonly 文档内容
+          fireContentChange(vscode.Uri.file(txtPath).with({ scheme: ReadOnlyContentProvider.SCHEME }))
           item.iconPath = path.join(this.ctx.extensionPath, 'assets', 'svg', 'local.svg')
           this.resetLabel(item.parent)
           return true
@@ -422,6 +424,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
                 const txtPath = path.join(bookPath, `${ch.index}. ${ch.title}.txt`)
                 fs.mkdirSync(path.dirname(txtPath), { recursive: true })
                 fs.writeFileSync(txtPath, text, 'utf-8')
+                fireContentChange(vscode.Uri.file(txtPath).with({ scheme: ReadOnlyContentProvider.SCHEME }))
                 return true
               }
             } catch {
