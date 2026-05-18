@@ -2,17 +2,7 @@ import * as vscode from 'vscode'
 import * as http from 'http'
 import * as https from 'https'
 import { ensureBrowserPath, renderWithBrowser } from './browserHelper'
-
-/** SPA 页面检测模式 */
-const SPA_PATTERNS = [
-  /<div\s+id=["'](root|app|__nuxt|__next|mount)["']/i,
-  /data-reactroot/i,
-  /ng-version=/i,
-]
-
-function isSPA(html: string): boolean {
-  return SPA_PATTERNS.some((p) => p.test(html))
-}
+import { isSPA } from './spaDetector'
 
 /**
  * 普通 HTTP/HTTPS GET 请求，不依赖浏览器。

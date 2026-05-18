@@ -4,7 +4,7 @@ import * as fs from 'fs'
 import type { IBookTreeItem } from './types'
 import { webRequest } from './http'
 import { resolve } from "url"
-import * as htmlToText from 'html-to-text'
+import { htmlToText } from './htmlTransform'
 import { BookTreeProvider } from './book.tree.class'
 import { getBookCatalog } from './utils'
 
@@ -156,10 +156,9 @@ export class BookWebview {
     const regexDo = new RegExp(book.regex.detailRegex, 'g')
     const regexResult = regexDo.exec(html)
     if (!regexResult) { return '' }
-    let content = regexResult.groups!["content"]
+    const content = regexResult.groups!["content"]
     if (!content) { return '' }
-    content = htmlToText.convert(content)
-    return content
+    return htmlToText(content)
   }
   /**
    * 保存书籍

@@ -1,181 +1,12 @@
 import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
-import { parse, HTMLElement } from 'node-html-parser'
-import { convert } from 'html-to-text'
 import { getNewWebviewContent } from './newWebviewContent'
 import { fetchHtml } from './http'
 import { ensureBrowserPath } from './browserHelper'
-import type { WebviewMessage, ExtensionMessage, TreeNode, DirectoryItem, IBookTreeItem } from './types'
-
-// ─── DOM 解析工具（参考 DEMO domParser.ts） ───
-
-function getAbsoluteUrl(href: string, baseUrl: string): string {
-  if (!href) {return ''}
-  if (href.startsWith('http://') || href.startsWith('https://')) {return href}
-  try {
-    return new URL(href, baseUrl).href
-  } catch {
-    return ''
-  }
-}
-
-function buildSelector(element: HTMLElement, root: HTMLElement): string {
-  const pathSegments: string[] = []
-  let current: HTMLElement | null = element
-
-  while (current && current !== root) {
-    const tagName = current.tagName.toLowerCase()
-    const parent = current.parentNode as HTMLElement | null
-
-    if (parent) {
-      const directChildren = parent.childNodes.filter(
-        (n): n is HTMLElement => n instanceof HTMLElement && n.tagName.toLowerCase() === tagName
-      )
-      if (directChildren.length > 1) {
-        const index = directChildren.indexOf(current) + 1
-        pathSegments.unshift(`${tagName}:nth-of-type(${index})`)
-      } else {
-        pathSegments.unshift(tagName)
-      }
-    } else {
-      pathSegments.unshift(tagName)
-    }
-    current = parent
-  }
-
-  return pathSegments.join(' > ')
-}
-
-function elementToTreeNode(
-  element: HTMLElement,
-  root: HTMLElement,
-  depth: number,
-  maxDepth: number
-): TreeNode | null {
-  if (depth > maxDepth) {return null}
-  const tagName = element.tagName.toLowerCase()
-  if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') {return null}
-
-  const attributes: Record<string, string> = {}
-  const rawAttrs = element.rawAttrs || ''
-  const attrRegex = /([\w-]+)(?:\s*=\s*"([^"]*)")?/g
-  let match
-  while ((match = attrRegex.exec(rawAttrs)) !== null) {
-    attributes[match[1]] = match[2] || ''
-  }
-
-  const textContent = (element.textContent || '').trim().substring(0, 100)
-
-  const children: TreeNode[] = []
-  if (depth < maxDepth) {
-    for (const child of element.childNodes) {
-      if (child instanceof HTMLElement) {
-        const childNode = elementToTreeNode(child, root, depth + 1, maxDepth)
-        if (childNode) {children.push(childNode)}
-      }
-    }
-  }
-
-  return {
-    tagName,
-    selector: buildSelector(element, root),
-    attributes,
-    textContent,
-    children,
-    expanded: false,
-    phaseActions: [],
-  }
-}
-
-function parseHtmlToTree(html: string, maxDepth: number = 6): TreeNode[] {
-  const root = parse(html)
-  const body = root.querySelector('body')
-  const container = body || root
-
-  const trees: TreeNode[] = []
-  for (const child of container.childNodes) {
-    if (child instanceof HTMLElement) {
-      const node = elementToTreeNode(child, container, 0, maxDepth)
-      if (node) {trees.push(node)}
-    }
-  }
-  return trees
-}
-
-function extractDirectoryItems(html: string, selector: string, pageUrl: string): DirectoryItem[] {
-  const root = parse(html)
-  const selectedElement = root.querySelector(selector)
-  if (!selectedElement) {return []}
-
-  const parent = selectedElement.parentNode as HTMLElement
-  const links = parent.querySelectorAll('a')
-
-  const items: DirectoryItem[] = []
-  const seen = new Set<string>()
-
-  for (const link of links) {
-    const href = link.getAttribute('href') || ''
-    if (!href) {continue}
-
-    const title = link.getAttribute('title') || link.textContent?.trim() || ''
-    if (!title) {continue}
-
-    const absoluteLink = getAbsoluteUrl(href, pageUrl)
-    if (!absoluteLink || seen.has(absoluteLink)) {continue}
-    seen.add(absoluteLink)
-
-    items.push({ title, link: absoluteLink })
-  }
-
-  return items
-}
-
-function extractContent(html: string, selector: string): string {
-  const root = parse(html)
-  const element = root.querySelector(selector)
-  if (!element) {return ''}
-
-  const rawHtml = element.innerHTML?.trim() || ''
-  return convert(rawHtml, {
-    wordwrap: 80,
-    selectors: [
-      { selector: 'a', options: { ignoreHref: true } },
-      { selector: 'img', format: 'skip' },
-    ],
-  })
-}
-
-function extractPaginationLinks(html: string, selector: string, pageUrl: string): string[] {
-  const root = parse(html)
-  const element = root.querySelector(selector)
-  if (!element) {return []}
-
-  const links: string[] = []
-  const seen = new Set<string>()
-
-  if (element.tagName.toLowerCase() === 'a') {
-    const href = element.getAttribute('href') || ''
-    const absoluteLink = getAbsoluteUrl(href, pageUrl)
-    if (absoluteLink && !seen.has(absoluteLink)) {
-      seen.add(absoluteLink)
-      links.push(absoluteLink)
-    }
-  } else {
-    const aTags = element.querySelectorAll('a')
-    for (const a of aTags) {
-      const href = a.getAttribute('href') || ''
-      if (!href) {continue}
-      const absoluteLink = getAbsoluteUrl(href, pageUrl)
-      if (absoluteLink && !seen.has(absoluteLink)) {
-        seen.add(absoluteLink)
-        links.push(absoluteLink)
-      }
-    }
-  }
-
-  return links
-}
+import { isSPA } from './spaDetector'
+import { parseHtmlToTree, extractDirectoryItems, extractContentAsText, extractPaginationLinks } from './domParser'
+import type { WebviewMessage, ExtensionMessage, IBookTreeItem } from './types'
 
 // ─── Webview 面板 ───
 
@@ -238,18 +69,8 @@ async function handleMessage(
     case 'fetch-dom-tree': {
       post({ type: 'progress', message: '正在抓取页面 HTML...' })
 
-      // SPA 检测（参考 DEMO fetchPageWithSpaCheck）
       const rawHtml = await fetchHtml(message.url, false)
-      const spaPatterns = [
-        /<div\s+id=["'](root|app|__nuxt|__next|mount)["']/i,
-        /id=["'](root|app|__nuxt|__next|mount)["']\s*>/i,
-        /data-reactroot/i,
-        /ng-version=/i,
-        /__NUXT__/i,
-        /__NEXT_DATA__/i,
-      ]
-      const isSpa = spaPatterns.some((p) => p.test(rawHtml))
-      const html = isSpa
+      const html = isSPA(rawHtml)
         ? await (async () => {
             const browserPath = await ensureBrowserPath()
             if (browserPath) {
@@ -270,13 +91,7 @@ async function handleMessage(
     case 'fetch-directory-content': {
       post({ type: 'progress', message: '正在抓取目录页面...' })
       const rawHtml = await fetchHtml(message.link, false)
-      const spaPatterns = [
-        /<div\s+id=["'](root|app|__nuxt|__next|mount)["']/i,
-        /data-reactroot/i,
-        /ng-version=/i,
-      ]
-      const isSpa = spaPatterns.some((p) => p.test(rawHtml))
-      const html = isSpa
+      const html = isSPA(rawHtml)
         ? await (async () => {
             const browserPath = await ensureBrowserPath()
             if (browserPath) {
@@ -313,7 +128,7 @@ async function handleMessage(
         break
       }
 
-      const content = extractContent(html, message.selector)
+      const content = extractContentAsText(html, message.selector)
       post({ type: 'content', html: content || `[在 ${message.selector} 未提取到内容]` })
       break
     }
