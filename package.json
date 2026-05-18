@@ -57,8 +57,8 @@
       },
       {
         "command": "lbook.newConfig",
-        "title": "新版配置",
-        "icon": "assets/svg/star.svg"
+        "title": "新建书籍",
+        "icon": "assets/svg/add.svg"
       },
       {
         "command": "lbook.refresh",
@@ -109,7 +109,7 @@
       },
       {
         "command": "lbook.fetchPage",
-        "title": "抓取当前页"
+        "title": "抓取当前分页"
       },
       {
         "command": "lbook.downloadCached",
@@ -118,11 +118,6 @@
     ],
     "menus": {
       "view/title": [
-        {
-          "command": "lbook.add",
-          "when": "view == lbook",
-          "group": "navigation"
-        },
         {
           "command": "lbook.newConfig",
           "when": "view == lbook",
@@ -153,7 +148,7 @@
         {
           "command": "lbook.delete",
           "when": "view == lbook && viewItem == lbookItem",
-          "group": "navigation@4"
+          "group": "navigation@6"
         },
         {
           "command": "lbook.size",
@@ -173,12 +168,12 @@
         {
           "command": "lbook.fetchPage",
           "when": "view == lbook && viewItem == lbookItem",
-          "group": "navigation@5"
+          "group": "navigation@4"
         },
         {
           "command": "lbook.downloadCached",
           "when": "view == lbook && viewItem == lbookItem",
-          "group": "navigation@6"
+          "group": "navigation@5"
         },
         {
           "command": "lbook.load",
