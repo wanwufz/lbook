@@ -252,15 +252,17 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
       cancellable: false,
     }, () => {
       return new Promise<boolean>(async (resolve) => {
+        let selectorResult: { text: string; paginationCount: number } | null = null
+
         const getText = async (link: string, book: IBookTreeItem): Promise<string> => {
           const res = await webRequest(link)
           if (!res) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
 
           if (book.mode === 'selector' && book.contentSelector) {
             // ─── selector 模式：CSS 选择器提取正文（含分页） ───
-            const text = await fetchChapterTextBySelector(res, book.contentSelector, book.paginationSelector, link, book.paginationText)
-            if (!text) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
-            return text
+            selectorResult = await fetchChapterTextBySelector(res, book.contentSelector, book.paginationSelector, link, book.paginationText)
+            if (!selectorResult) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
+            return selectorResult.text
           } else {
             // ─── regex 模式：正则提取正文 ───
             const regexDo = new RegExp(book.regex.detailRegex, 'g')
@@ -295,7 +297,14 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
           return true
         }
         resolve(await doHttp())
-        if (showMessage) { vscode.window.showInformationMessage("获取正文成功!") }
+        if (showMessage) {
+          let msg = "获取正文成功!"
+          const pagCount = ((selectorResult as { text: string; paginationCount: number } | null)?.paginationCount ?? 0)
+          if (pagCount > 0) {
+            msg += `（已获取 ${pagCount} 分页内容）`
+          }
+          vscode.window.showInformationMessage(msg)
+        }
       })
     })
   }
@@ -398,7 +407,8 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
 
               if (book.mode === 'selector' && book.contentSelector) {
                 // selector 模式（使用共享提取函数，含分页合并）
-                text = await fetchChapterTextBySelector(html, book.contentSelector, book.paginationSelector, ch.link, book.paginationText)
+                const result = await fetchChapterTextBySelector(html, book.contentSelector, book.paginationSelector, ch.link, book.paginationText)
+                text = result?.text ?? null
                 if (!text && attempt < 3) {
                   await new Promise(r => setTimeout(r, 1000))
                   continue

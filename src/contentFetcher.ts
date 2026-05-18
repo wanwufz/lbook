@@ -100,13 +100,15 @@ export async function fetchChapterTextBySelector(
   paginationSelector: string | undefined,
   chapterLink: string,
   paginationText?: string,
-): Promise<string | null> {
+): Promise<{ text: string; paginationCount: number } | null> {
   const root = parse(html)
   const el = root.querySelector(contentSelector)
   if (!el) { return null }
 
   let text = htmlToText(el.innerHTML?.trim() || '')
   if (!text) { return null }
+
+  let paginationCount = 0
 
   // 递归翻页处理（有分页规则但无分页文本时跳过翻页）
   if (paginationSelector && paginationText) {
@@ -126,6 +128,7 @@ export async function fetchChapterTextBySelector(
       const contentEl = nextRoot.querySelector(contentSelector)
       if (contentEl) {
         text += '\n\n---\n\n' + htmlToText(contentEl.innerHTML?.trim() || '')
+        paginationCount++
       }
 
       currentRoot = nextRoot
@@ -133,7 +136,7 @@ export async function fetchChapterTextBySelector(
     }
   }
 
-  return text
+  return { text, paginationCount }
 }
 
 /**
