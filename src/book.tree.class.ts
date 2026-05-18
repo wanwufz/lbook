@@ -12,6 +12,7 @@ import { parse } from 'node-html-parser'
 import { getBookCatalog } from "./utils"
 import { showNewConfigPanel } from "./newWebviewPanel"
 import { fetchChapterTextBySelector, fetchRecursiveByRegex } from './contentFetcher'
+import { extractDirectoryItems } from './domParser'
 
 export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<BookTreeItem | undefined> = new vscode.EventEmitter<BookTreeItem | undefined>()
@@ -306,16 +307,35 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
       cancellable: false,
     }, () => {
       return new Promise<boolean>(async (resolve) => {
-        webRequest(item.book.link).then(html => {
-          const catalog = getBookCatalog(JSON.stringify({book: item.book, html}))
-          item.book.catalog = catalog
+        try {
+          const html = await webRequest(item.book.link)
+          if (!html) { throw new Error('请求失败') }
+
+          if (item.book.mode === 'selector' && item.book.catalogSelector) {
+            // ─── DOM selector 模式：CSS 选择器提取目录 ───
+            const dirItems = extractDirectoryItems(html, item.book.catalogSelector, item.book.link)
+            item.book.catalog = dirItems.map((d, i) => ({
+              title: d.title,
+              link: d.link,
+              index: i + 1,
+              regex: { regex: '', start: '', end: '', detailRegex: '' },
+              catalog: [],
+              page: 1,
+              pageSize: 100,
+            }))
+          } else {
+            // ─── regex 模式：正则提取目录 ───
+            const catalog = getBookCatalog(JSON.stringify({ book: item.book, html }))
+            item.book.catalog = catalog
+          }
+
           this.resetLabel(item)
           resolve(true)
           vscode.window.showInformationMessage("刷新目录成功!")
-        }).catch(() => {
+        } catch {
           resolve(false)
           vscode.window.showErrorMessage("刷新目录失败!")
-        })
+        }
       })
     })
   }
