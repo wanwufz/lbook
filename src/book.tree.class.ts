@@ -7,7 +7,9 @@ import type { IBookTreeItem } from "./types"
 import { ReadOnlyContentProvider } from "./text.class"
 import { webRequest } from "./http"
 import * as htmlToText from "html-to-text"
+import { parse } from 'node-html-parser'
 import { getBookCatalog } from "./utils"
+import { showNewConfigPanel } from "./newWebviewPanel"
 import * as url from "url"
 // import { CheerioCrawler } from 'crawlee'
 
@@ -85,8 +87,12 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
     this.refresh(item)
   }
   config(item: BookTreeItem) {
-    const webview = new BookWebview(this.ctx, this, item.book)
-    webview.config()
+    if (item.book.mode === 'selector') {
+      showNewConfigPanel(this.ctx, item.book)
+    } else {
+      const webview = new BookWebview(this.ctx, this, item.book)
+      webview.config()
+    }
   }
   add() {
     const webview = new BookWebview(this.ctx, this)
@@ -248,15 +254,77 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
         const getText = async (link: string, book: IBookTreeItem): Promise<string> => {
           const res = await webRequest(link)
           if (!res) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
-          const regexDo = new RegExp(book.regex.detailRegex, 'g')
-          const regexResult = regexDo.exec(res)
-          let content = regexResult?.groups!["content"]
-          if (!content) { vscode.window.showErrorMessage("正文链接请求失败!");return '' }
-          if (book.nextKey && book.nextRegex && res.includes(book.nextKey)) {
-            let nextLink = res.match(new RegExp(book.nextRegex, 'i'))?.[1]
-            nextLink = nextLink?.toLocaleLowerCase().startsWith("http") ? nextLink : url.resolve(book.link, nextLink || '')
-            return htmlToText.convert(content) + '\n' + await getText(nextLink, book)
+
+          if (book.mode === 'selector' && book.contentSelector) {
+            // ─── selector 模式：CSS 选择器提取正文 ───
+            const root = parse(res)
+            const element = root.querySelector(book.contentSelector)
+            if (!element) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
+
+            const rawHtml = element.innerHTML?.trim() || ''
+            let text = htmlToText.convert(rawHtml, {
+              wordwrap: 80,
+              selectors: [
+                { selector: 'a', options: { ignoreHref: true } },
+                { selector: 'img', format: 'skip' },
+              ],
+            })
+            if (!text) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
+
+            // 分页处理
+            if (book.paginationSelector) {
+              const pagElement = root.querySelector(book.paginationSelector)
+              if (pagElement) {
+                const pagLinks: string[] = []
+                const seen = new Set<string>()
+                const collectLinks = (el: any) => {
+                  if (el.tagName?.toLowerCase() === 'a') {
+                    const href = el.getAttribute('href') || ''
+                    const abs = href.startsWith('http') ? href : url.resolve(link, href)
+                    if (abs && !seen.has(abs)) { seen.add(abs); pagLinks.push(abs) }
+                  } else {
+                    const aTags = el.querySelectorAll?.('a') || []
+                    for (const a of aTags) {
+                      const href = a.getAttribute('href') || ''
+                      if (!href) continue
+                      const abs = href.startsWith('http') ? href : url.resolve(link, href)
+                      if (abs && !seen.has(abs)) { seen.add(abs); pagLinks.push(abs) }
+                    }
+                  }
+                }
+                collectLinks(pagElement)
+
+                for (const pagLink of pagLinks) {
+                  const pagHtml = await webRequest(pagLink)
+                  if (pagHtml) {
+                    const pagRoot = parse(pagHtml)
+                    const pagEl = pagRoot.querySelector(book.contentSelector)
+                    if (pagEl) {
+                      const pagRaw = pagEl.innerHTML?.trim() || ''
+                      text += '\n\n---\n\n' + htmlToText.convert(pagRaw, {
+                        wordwrap: 80,
+                        selectors: [
+                          { selector: 'a', options: { ignoreHref: true } },
+                          { selector: 'img', format: 'skip' },
+                        ],
+                      })
+                    }
+                  }
+                }
+              }
+            }
+            return text
           } else {
+            // ─── regex 模式：正则提取正文 ───
+            const regexDo = new RegExp(book.regex.detailRegex, 'g')
+            const regexResult = regexDo.exec(res)
+            let content = regexResult?.groups!["content"]
+            if (!content) { vscode.window.showErrorMessage("正文链接请求失败!");return '' }
+            if (book.nextKey && book.nextRegex && res.includes(book.nextKey)) {
+              let nextLink = res.match(new RegExp(book.nextRegex, 'i'))?.[1]
+              nextLink = nextLink?.toLocaleLowerCase().startsWith("http") ? nextLink : url.resolve(book.link, nextLink || '')
+              return htmlToText.convert(content) + '\n' + await getText(nextLink, book)
+            }
             return htmlToText.convert(content)
           }
         }

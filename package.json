@@ -56,6 +56,15 @@
         "icon": "assets/svg/add.svg"
       },
       {
+        "command": "lbook.newConfig",
+        "title": "新版配置",
+        "icon": "assets/svg/star.svg"
+      },
+      {
+        "command": "lbook.refresh",
+        "title": "刷新列表"
+      },
+      {
         "command": "lbook.previous",
         "title": "上一页",
         "icon": "assets/svg/previous.svg"
@@ -103,6 +112,11 @@
       "view/title": [
         {
           "command": "lbook.add",
+          "when": "view == lbook",
+          "group": "navigation"
+        },
+        {
+          "command": "lbook.newConfig",
           "when": "view == lbook",
           "group": "navigation"
         }
@@ -227,6 +241,7 @@
     "vuetify": "^3.8.7"
   },
   "dependencies": {
+    "node-html-parser": "^7.1.0",
     "playwright-core": "^1.40.0"
   }
 }

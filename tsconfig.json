@@ -11,11 +11,12 @@
 		"strict": true,
 		"declaration": true,
 		"declarationDir": "./types",
-		"emitDeclarationOnly": false,
+		"emitDeclarationOnly": false
 	},
 	"exclude": [
 		"node_modules",
 		"vite.config.ts",
 		"src/vue/*.*",
+		"DEMO"
 	]
 }

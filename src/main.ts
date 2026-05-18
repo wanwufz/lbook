@@ -4,6 +4,7 @@ import path from 'path'
 import { BookTreeItem } from './book.class'
 import { ReadOnlyContentProvider } from './text.class'
 import { BookTreeProvider } from './book.tree.class'
+import { showNewConfigPanel } from './newWebviewPanel'
 
 // 初始化
 export function init(ctx: vscode.ExtensionContext) {
@@ -34,14 +35,14 @@ export function init(ctx: vscode.ExtensionContext) {
             case 'lbook.view': BookTree.view(element); return
             case 'lbook.load': BookTree.load(element); return
             case 'lbook.loadDirectory': BookTree.loadDirectory(element); return
-            // case 'lbook.down': BookTree.down(element); return
+            case 'lbook.newConfig': showNewConfigPanel(ctx); return
+            case 'lbook.refresh': BookTree.refresh(); return
             default:
               vscode.window.showInformationMessage(command.title)
               break
           }
         })
       )
-
     })
     ctx.subscriptions.push(
       vscode.commands.registerCommand('lbook.textPrevious', () => {
