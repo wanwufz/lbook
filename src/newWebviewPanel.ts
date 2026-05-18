@@ -11,8 +11,8 @@ import type { WebviewMessage, ExtensionMessage, TreeNode, DirectoryItem, IBookTr
 // ─── DOM 解析工具（参考 DEMO domParser.ts） ───
 
 function getAbsoluteUrl(href: string, baseUrl: string): string {
-  if (!href) return ''
-  if (href.startsWith('http://') || href.startsWith('https://')) return href
+  if (!href) {return ''}
+  if (href.startsWith('http://') || href.startsWith('https://')) {return href}
   try {
     return new URL(href, baseUrl).href
   } catch {
@@ -53,9 +53,9 @@ function elementToTreeNode(
   depth: number,
   maxDepth: number
 ): TreeNode | null {
-  if (depth > maxDepth) return null
+  if (depth > maxDepth) {return null}
   const tagName = element.tagName.toLowerCase()
-  if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') return null
+  if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') {return null}
 
   const attributes: Record<string, string> = {}
   const rawAttrs = element.rawAttrs || ''
@@ -72,7 +72,7 @@ function elementToTreeNode(
     for (const child of element.childNodes) {
       if (child instanceof HTMLElement) {
         const childNode = elementToTreeNode(child, root, depth + 1, maxDepth)
-        if (childNode) children.push(childNode)
+        if (childNode) {children.push(childNode)}
       }
     }
   }
@@ -97,7 +97,7 @@ function parseHtmlToTree(html: string, maxDepth: number = 6): TreeNode[] {
   for (const child of container.childNodes) {
     if (child instanceof HTMLElement) {
       const node = elementToTreeNode(child, container, 0, maxDepth)
-      if (node) trees.push(node)
+      if (node) {trees.push(node)}
     }
   }
   return trees
@@ -106,7 +106,7 @@ function parseHtmlToTree(html: string, maxDepth: number = 6): TreeNode[] {
 function extractDirectoryItems(html: string, selector: string, pageUrl: string): DirectoryItem[] {
   const root = parse(html)
   const selectedElement = root.querySelector(selector)
-  if (!selectedElement) return []
+  if (!selectedElement) {return []}
 
   const parent = selectedElement.parentNode as HTMLElement
   const links = parent.querySelectorAll('a')
@@ -116,13 +116,13 @@ function extractDirectoryItems(html: string, selector: string, pageUrl: string):
 
   for (const link of links) {
     const href = link.getAttribute('href') || ''
-    if (!href) continue
+    if (!href) {continue}
 
     const title = link.getAttribute('title') || link.textContent?.trim() || ''
-    if (!title) continue
+    if (!title) {continue}
 
     const absoluteLink = getAbsoluteUrl(href, pageUrl)
-    if (!absoluteLink || seen.has(absoluteLink)) continue
+    if (!absoluteLink || seen.has(absoluteLink)) {continue}
     seen.add(absoluteLink)
 
     items.push({ title, link: absoluteLink })
@@ -134,7 +134,7 @@ function extractDirectoryItems(html: string, selector: string, pageUrl: string):
 function extractContent(html: string, selector: string): string {
   const root = parse(html)
   const element = root.querySelector(selector)
-  if (!element) return ''
+  if (!element) {return ''}
 
   const rawHtml = element.innerHTML?.trim() || ''
   return convert(rawHtml, {
@@ -149,7 +149,7 @@ function extractContent(html: string, selector: string): string {
 function extractPaginationLinks(html: string, selector: string, pageUrl: string): string[] {
   const root = parse(html)
   const element = root.querySelector(selector)
-  if (!element) return []
+  if (!element) {return []}
 
   const links: string[] = []
   const seen = new Set<string>()
@@ -165,7 +165,7 @@ function extractPaginationLinks(html: string, selector: string, pageUrl: string)
     const aTags = element.querySelectorAll('a')
     for (const a of aTags) {
       const href = a.getAttribute('href') || ''
-      if (!href) continue
+      if (!href) {continue}
       const absoluteLink = getAbsoluteUrl(href, pageUrl)
       if (absoluteLink && !seen.has(absoluteLink)) {
         seen.add(absoluteLink)

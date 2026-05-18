@@ -530,7 +530,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
    * 下载已缓存章节，合并为一个整书 txt 文件。
    */
   async downloadCached(item: BookTreeItem) {
-    if (!item) return
+    if (!item) {return}
     const book = item.book
     const bookPath = path.join(this.bookDir, book.title)
 
@@ -559,7 +559,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
       filters: { '文本文件': ['txt'] },
       title: `保存整书 - ${book.title}`,
     })
-    if (!uri) return
+    if (!uri) {return}
 
     const merged = parts.join('\n\n')
     fs.writeFileSync(uri.fsPath, merged, 'utf-8')
