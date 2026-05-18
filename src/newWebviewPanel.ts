@@ -34,6 +34,7 @@ export function showNewConfigPanel(context: vscode.ExtensionContext, existingCon
       contentSelector: existingConfig.contentSelector,
       paginationSelector: existingConfig.paginationSelector,
       paginationText: existingConfig.paginationText,
+      fetchMode: existingConfig.fetchMode,
       items: existingConfig.catalog.map(c => ({ title: c.title, link: c.link })),
     }
     panel.webview.postMessage({ type: 'config-loaded', config: simpleConfig } as ExtensionMessage)
@@ -70,18 +71,21 @@ async function handleMessage(
     case 'fetch-dom-tree': {
       post({ type: 'progress', message: '正在抓取页面 HTML...' })
 
-      const rawHtml = await fetchHtml(message.url, false)
-      const html = isSPA(rawHtml)
-        ? await (async () => {
-            const browserPath = await ensureBrowserPath()
-            if (browserPath) {
-              post({ type: 'progress', message: '检测到 SPA 页面，正在启动浏览器渲染...' })
-              return fetchHtml(message.url, true)
-            }
-            post({ type: 'progress', message: '未配置浏览器，使用原始 HTML' })
-            return rawHtml
-          })()
-        : rawHtml
+      const rawHtml = await fetchHtml(message.url, false, message.fetchMode)
+      // fetchMode='2' 已强制使用浏览器渲染，跳过 SPA 检测
+      const html = message.fetchMode === '2'
+        ? rawHtml
+        : isSPA(rawHtml)
+          ? await (async () => {
+              const browserPath = await ensureBrowserPath()
+              if (browserPath) {
+                post({ type: 'progress', message: '检测到 SPA 页面，正在启动浏览器渲染...' })
+                return fetchHtml(message.url, true)
+              }
+              post({ type: 'progress', message: '未配置浏览器，使用原始 HTML' })
+              return rawHtml
+            })()
+          : rawHtml
 
       htmlCache.set(message.url, html)
       const tree = parseHtmlToTree(html)
@@ -91,17 +95,19 @@ async function handleMessage(
 
     case 'fetch-directory-content': {
       post({ type: 'progress', message: '正在抓取目录页面...' })
-      const rawHtml = await fetchHtml(message.link, false)
-      const html = isSPA(rawHtml)
-        ? await (async () => {
-            const browserPath = await ensureBrowserPath()
-            if (browserPath) {
-              post({ type: 'progress', message: '检测到 SPA 页面，正在启动浏览器渲染...' })
-              return fetchHtml(message.link, true)
-            }
-            return rawHtml
-          })()
-        : rawHtml
+      const rawHtml = await fetchHtml(message.link, false, message.fetchMode)
+      const html = message.fetchMode === '2'
+        ? rawHtml
+        : isSPA(rawHtml)
+          ? await (async () => {
+              const browserPath = await ensureBrowserPath()
+              if (browserPath) {
+                post({ type: 'progress', message: '检测到 SPA 页面，正在启动浏览器渲染...' })
+                return fetchHtml(message.link, true)
+              }
+              return rawHtml
+            })()
+          : rawHtml
 
       htmlCache.set(message.link, html)
       const tree = parseHtmlToTree(html)
@@ -180,6 +186,7 @@ async function handleMessage(
         contentSelector: message.config.contentSelector,
         paginationSelector: message.config.paginationSelector || undefined,
         paginationText: message.config.paginationText || undefined,
+        fetchMode: message.config.fetchMode || undefined,
       }
 
       // 保存到旧版书籍目录

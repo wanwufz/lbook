@@ -1,8 +1,24 @@
 import * as vscode from 'vscode'
 import * as http from 'http'
 import * as https from 'https'
+import * as zlib from 'zlib'
 import { ensureBrowserPath, renderWithBrowser } from './browserHelper'
 import { isSPA } from './spaDetector'
+
+/**
+ * 解压 Buffer，根据 content-encoding 自动选择 gzip / deflate。
+ */
+function decompressBuffer(buf: Buffer, encoding: string | undefined): Buffer {
+  if (!encoding) { return buf }
+  const enc = encoding.toLowerCase().trim()
+  if (enc.includes('gzip')) {
+    return zlib.gunzipSync(buf)
+  }
+  if (enc.includes('deflate')) {
+    return zlib.inflateSync(buf)
+  }
+  return buf
+}
 
 /**
  * 普通 HTTP/HTTPS GET 请求，不依赖浏览器。
@@ -21,7 +37,17 @@ function httpFetch(url: string): Promise<string> {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        Referer: `${parsedUrl.protocol}//${parsedUrl.hostname}/`,
+        'Cache-Control': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
       },
       timeout: 15000,
     }
@@ -30,7 +56,9 @@ function httpFetch(url: string): Promise<string> {
       const chunks: Buffer[] = []
       res.on('data', (chunk: Buffer) => chunks.push(chunk))
       res.on('end', () => {
-        const content = Buffer.concat(chunks).toString('utf-8')
+        const raw = Buffer.concat(chunks)
+        const decoded = decompressBuffer(raw, res.headers['content-encoding'])
+        const content = decoded.toString('utf-8')
 
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           let html = content
@@ -48,7 +76,11 @@ function httpFetch(url: string): Promise<string> {
             reject(new Error(`Redirect (${res.statusCode}) with no location`))
           }
         } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage || 'Request failed'}`))
+          const msg =
+            res.statusCode === 403
+              ? `HTTP 403：该网站可能禁止了非浏览器请求，可在设置中配置 "lbook.browserPath" 使用浏览器渲染。`
+              : `HTTP ${res.statusCode}: ${res.statusMessage || 'Request failed'}`
+          reject(new Error(msg))
         }
       })
     })
@@ -68,8 +100,18 @@ function httpFetch(url: string): Promise<string> {
  * - `forceBrowser = true`：直接使用浏览器渲染。
  * - `forceBrowser = false`（默认）：先用普通 HTTP 请求，
  *   检测到 SPA 特征时自动尝试浏览器渲染。
+ *
+ * @param fetchMode 获取方式：''|undefined=自动，'1'=常规（仅 HTTP），'2'=强制浏览器。
+ *                  传此参数时覆盖 forceBrowser。
  */
-export async function fetchHtml(url: string, forceBrowser: boolean = false): Promise<string> {
+export async function fetchHtml(url: string, forceBrowser: boolean = false, fetchMode?: string): Promise<string> {
+  // fetchMode 优先级高于 forceBrowser
+  if (fetchMode === '2') {
+    forceBrowser = true
+  } else if (fetchMode === '1') {
+    forceBrowser = false
+  }
+
   if (forceBrowser) {
     const browserPath = await ensureBrowserPath()
     if (!browserPath) {
@@ -81,7 +123,10 @@ export async function fetchHtml(url: string, forceBrowser: boolean = false): Pro
   // 先尝试普通 HTTP 请求
   const rawHtml = await httpFetch(url)
 
-  // 检测 SPA 特征
+  // 常规模式（'1'）跳过 SPA 检测，直接返回
+  if (fetchMode === '1') { return rawHtml }
+
+  // 自动模式（''|undefined）：检测 SPA 特征
   if (isSPA(rawHtml)) {
     const browserPath = await ensureBrowserPath()
     if (browserPath) {
@@ -99,9 +144,11 @@ export async function fetchHtml(url: string, forceBrowser: boolean = false): Pro
 /**
  * 向后兼容：旧版 webRequest 调用入口。
  * 与原返回值一致：成功返回 HTML 字符串，失败返回空字符串并报错。
+ *
+ * @param fetchMode 获取方式：''|undefined=自动，'1'=常规（仅 HTTP），'2'=强制浏览器。
  */
-export function webRequest(url: string): Promise<string> {
-  return fetchHtml(url).catch((err: any) => {
+export function webRequest(url: string, fetchMode?: string): Promise<string> {
+  return fetchHtml(url, false, fetchMode).catch((err: any) => {
     vscode.window.showErrorMessage(err.message)
     return ''
   })

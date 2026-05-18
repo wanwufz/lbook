@@ -55,6 +55,14 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
       <div id="titleError" class="error-text"></div>
     </div>
     <div class="form-row">
+      <label for="fetchMode">获取方式</label>
+      <select id="fetchMode">
+        <option value="">自动（常规 HTTP，自动检测 SPA）</option>
+        <option value="1">常规（仅 HTTP，不启用浏览器）</option>
+        <option value="2">真实浏览器（强制使用 Playwright 渲染）</option>
+      </select>
+    </div>
+    <div class="form-row">
       <label for="url">目标网址 *</label>
       <input type="text" id="url" placeholder="https://example.com">
       <div id="urlError" class="error-text"></div>
@@ -121,6 +129,7 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
 
   const $ = (id) => document.getElementById(id);
   const titleInp = $('title');
+  const fetchModeInp = $('fetchMode');
   const urlInp = $('url');
   const titleErr = $('titleError');
   const urlErr = $('urlError');
@@ -170,7 +179,7 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
     fetchStatus.textContent = '正在抓取...';
     state.fetchedPageUrl = url;
 
-    vscode.postMessage({ type: 'fetch-dom-tree', url });
+    vscode.postMessage({ type: 'fetch-dom-tree', url, fetchMode: fetchModeInp.value });
   });
 
   dirSelect.addEventListener('change', () => {
@@ -187,7 +196,7 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
     contentTree.innerHTML = '';
     contentArea.value = '';
     actionStatus.textContent = '';
-    vscode.postMessage({ type: 'fetch-directory-content', link });
+    vscode.postMessage({ type: 'fetch-directory-content', link, fetchMode: fetchModeInp.value });
   });
 
   saveBtn.addEventListener('click', () => {
@@ -209,6 +218,7 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
       contentSelector: state.contentSelector || '',
       paginationSelector: state.paginationSelector || '',
       paginationText: state.paginationText || '',
+      fetchMode: fetchModeInp.value || '',
       items: state.directoryItems
     };
 
@@ -386,6 +396,11 @@ textarea { font-family: 'Consolas', 'Courier New', monospace; resize: vertical; 
         }
         if (msg.config.paginationText) {
           state.paginationText = msg.config.paginationText;
+        }
+        if (msg.config.fetchMode) {
+          fetchModeInp.value = msg.config.fetchMode;
+        } else {
+          fetchModeInp.value = '';
         }
         actionStatus.textContent = '已加载配置，可重新抓取或直接保存';
         break;

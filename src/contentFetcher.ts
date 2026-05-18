@@ -100,6 +100,7 @@ export async function fetchChapterTextBySelector(
   paginationSelector: string | undefined,
   chapterLink: string,
   paginationText?: string,
+  fetchMode?: string,
 ): Promise<{ text: string; paginationCount: number } | null> {
   const root = parse(html)
   const el = root.querySelector(contentSelector)
@@ -121,7 +122,7 @@ export async function fetchChapterTextBySelector(
       if (!nextUrl || seen.has(nextUrl)) { break }
       seen.add(nextUrl)
 
-      const nextHtml = await webRequest(nextUrl)
+      const nextHtml = await webRequest(nextUrl, fetchMode)
       if (!nextHtml) { break }
 
       const nextRoot = parse(nextHtml)
@@ -149,6 +150,7 @@ export async function fetchChapterTextByRegex(
   nextKey: string | undefined,
   nextRegex: string | undefined,
   bookLink: string,
+  fetchMode?: string,
 ): Promise<string | null> {
   const regexDo = new RegExp(detailRegex, 'g')
   const regexResult = regexDo.exec(html)
@@ -158,9 +160,9 @@ export async function fetchChapterTextByRegex(
   if (nextKey && nextRegex && html.includes(nextKey)) {
     let nextLink = html.match(new RegExp(nextRegex, 'i'))?.[1]
     nextLink = nextLink?.toLocaleLowerCase().startsWith("http") ? nextLink : new URL(nextLink || '', bookLink).href
-    const nextHtml = await webRequest(nextLink)
+    const nextHtml = await webRequest(nextLink, fetchMode)
     if (nextHtml) {
-      const rest = await fetchChapterTextByRegex(nextHtml, detailRegex, nextKey, nextRegex, bookLink)
+      const rest = await fetchChapterTextByRegex(nextHtml, detailRegex, nextKey, nextRegex, bookLink, fetchMode)
       return htmlToText(content) + '\n' + (rest || '')
     }
   }
@@ -177,8 +179,9 @@ export async function fetchRecursiveByRegex(
   nextKey: string | undefined,
   nextRegex: string | undefined,
   bookLink: string,
+  fetchMode?: string,
 ): Promise<string> {
-  const h = await webRequest(chapterUrl)
+  const h = await webRequest(chapterUrl, fetchMode)
   if (!h) { return '' }
 
   const re = new RegExp(detailRegex, 'g')
@@ -191,7 +194,7 @@ export async function fetchRecursiveByRegex(
     let nl = h.match(new RegExp(nextRegex, 'i'))?.[1]
     nl = nl?.toLocaleLowerCase().startsWith("http") ? nl : new URL(nl || '', bookLink).href
     if (nl) {
-      const next = await fetchRecursiveByRegex(nl, detailRegex, nextKey, nextRegex, bookLink)
+      const next = await fetchRecursiveByRegex(nl, detailRegex, nextKey, nextRegex, bookLink, fetchMode)
       if (next) { part += '\n' + next }
     }
   }

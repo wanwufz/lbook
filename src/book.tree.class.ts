@@ -255,12 +255,12 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
         let selectorResult: { text: string; paginationCount: number } | null = null
 
         const getText = async (link: string, book: IBookTreeItem): Promise<string> => {
-          const res = await webRequest(link)
+          const res = await webRequest(link, book.fetchMode)
           if (!res) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
 
           if (book.mode === 'selector' && book.contentSelector) {
             // ─── selector 模式：CSS 选择器提取正文（含分页） ───
-            selectorResult = await fetchChapterTextBySelector(res, book.contentSelector, book.paginationSelector, link, book.paginationText)
+            selectorResult = await fetchChapterTextBySelector(res, book.contentSelector, book.paginationSelector, link, book.paginationText, book.fetchMode)
             if (!selectorResult) { vscode.window.showErrorMessage("正文链接请求失败!"); return '' }
             return selectorResult.text
           } else {
@@ -319,7 +319,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
     }, () => {
       return new Promise<boolean>(async (resolve) => {
         try {
-          const html = await webRequest(item.book.link)
+          const html = await webRequest(item.book.link, item.book.fetchMode)
           if (!html) { throw new Error('请求失败') }
 
           if (item.book.mode === 'selector' && item.book.catalogSelector) {
@@ -409,7 +409,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
 
               if (book.mode === 'selector' && book.contentSelector) {
                 // selector 模式（使用共享提取函数，含分页合并）
-                const result = await fetchChapterTextBySelector(html, book.contentSelector, book.paginationSelector, ch.link, book.paginationText)
+                const result = await fetchChapterTextBySelector(html, book.contentSelector, book.paginationSelector, ch.link, book.paginationText, book.fetchMode)
                 text = result?.text ?? null
                 if (!text && attempt < 3) {
                   await new Promise(r => setTimeout(r, 1000))
@@ -417,7 +417,7 @@ export class BookTreeProvider implements vscode.TreeDataProvider<BookTreeItem> {
                 }
               } else if (book.regex.detailRegex) {
                 // regex 模式（递归翻页，与 load 方法行为一致）
-                text = await fetchRecursiveByRegex(ch.link, book.regex.detailRegex, book.nextKey, book.nextRegex, book.link)
+                text = await fetchRecursiveByRegex(ch.link, book.regex.detailRegex, book.nextKey, book.nextRegex, book.link, book.fetchMode)
               }
 
               if (text) {
